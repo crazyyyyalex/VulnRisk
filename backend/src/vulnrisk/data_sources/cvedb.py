@@ -18,7 +18,7 @@ from typing import Any, Dict, Optional
 import httpx
 
 from .base import CVEData, CVEDataSource, calculate_age_days, detect_exploit_references
-from .epss import EPSSData, calculate_threat_intelligence_factor
+from .epss import EPSSData, calculate_threat_intelligence_factor, normalize_percentile
 
 logger = logging.getLogger("vulnrisk.cvedb")
 
@@ -65,7 +65,7 @@ class CVEDBClient(CVEDataSource):
         epss_score = float(epss_score)
         # CVEDB's ranking_epss is the EPSS percentile on the same 0-1 scale
         # FIRST.org uses, so it maps across without rescaling.
-        percentile = float(payload.get("ranking_epss") or 0.0)
+        percentile = normalize_percentile(payload.get("ranking_epss"))
 
         return EPSSData({
             'cve_id': cve_id,

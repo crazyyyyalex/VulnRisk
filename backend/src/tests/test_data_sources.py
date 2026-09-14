@@ -126,8 +126,10 @@ async def test_cvedb_supplies_epss_as_backup():
     assert epss is not None
     assert epss.epss_score == 0.94
     assert epss.percentile == 0.99
-    # 0.94 is above the 0.3 "exploit code available" threshold
-    assert epss.threat_intelligence_factor == 1.2
+    # 0.94 score at the 99th percentile is the top "active exploitation
+    # campaigns" tier. This asserted 1.2 while the percentile comparison used
+    # the wrong scale and the 1.5 branch could never be reached.
+    assert epss.threat_intelligence_factor == 1.5
 
 
 @pytest.mark.asyncio
@@ -290,3 +292,111 @@ def test_source_order_is_configurable(monkeypatch):
 
     monkeypatch.setenv("CVE_DATA_SOURCES", "")
     assert configured_source_order() == ["nvd", "cvedb"]
+
+
+# ---------------------------------------------------------------------------
+# EPSS percentile scale
+#
+# FIRST.org reports percentile as a 0-1 fraction ("1.000000000" for Log4Shell),
+# never 0-100. Comparing against 95.0 made the top-tier branches unreachable,
+# so these tests pin the scale and prove each tier can actually be hit.
+# ---------------------------------------------------------------------------
+
+from vulnrisk.data_sources.epss import (  # noqa: E402
+    PERCENTILE_TOP_5,
+    PERCENTILE_TOP_10,
+    EPSSClient,
+    EPSSData,
+    calculate_threat_intelligence_factor,
+    normalize_percentile,
+)
+
+
+def test_percentile_thresholds_are_on_the_zero_to_one_scale():
+    assert 0.0 < PERCENTILE_TOP_5 <= 1.0
+    assert 0.0 < PERCENTILE_TOP_10 <= 1.0
+    assert PERCENTILE_TOP_10 < PERCENTILE_TOP_5
+
+
+def test_active_exploitation_tier_is_reachable():
+    """The 1.5 factor requires a top-5% percentile; it must not be dead code."""
+    # Log4Shell's real FIRST.org values.
+    assert calculate_threat_intelligence_factor(0.99999, 1.0) == 1.5
+    # Just above the threshold.
+    assert calculate_threat_intelligence_factor(0.8, 0.96) == 1.5
+
+
+def test_below_top_5_percentile_falls_to_the_exploit_available_tier():
+    # High EPSS but only the 94th percentile -> not "active campaigns".
+    assert calculate_threat_intelligence_factor(0.8, 0.94) == 1.2
+    # Top percentile but a low score -> also not "active campaigns".
+    assert calculate_threat_intelligence_factor(0.5, 1.0) == 1.2
+
+
+def test_lower_threat_intelligence_tiers():
+    assert calculate_threat_intelligence_factor(0.1, 0.5) == 1.0
+    assert calculate_threat_intelligence_factor(0.02, 0.2) == 0.8
+    assert calculate_threat_intelligence_factor(0.001, 0.01) == 0.6
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        (1.0, 1.0),        # FIRST.org top percentile
+        (0.95213, 0.95213),  # FIRST.org mid-tier value, untouched
+        (0.0, 0.0),
+        (None, 0.0),
+        ("0.87", 0.87),
+        (95.0, 0.95),      # a 0-100 source gets rescaled
+        (100.0, 1.0),
+        (150.0, 1.0),      # clamped
+        (-5.0, 0.0),       # clamped
+        ("nonsense", 0.0),
+    ],
+)
+def test_normalize_percentile(raw, expected):
+    assert normalize_percentile(raw) == pytest.approx(expected)
+
+
+def test_epss_data_normalizes_percentile_on_construction():
+    """Every source funnels through EPSSData, so the scale is fixed there."""
+    assert EPSSData({"cve_id": "CVE-1", "percentile": 0.97}).percentile == pytest.approx(0.97)
+    assert EPSSData({"cve_id": "CVE-1", "percentile": 97.0}).percentile == pytest.approx(0.97)
+
+
+@pytest.mark.asyncio
+async def test_first_org_response_parses_to_zero_to_one_percentile():
+    """Guards the parse path against a real FIRST.org payload shape."""
+    payload = {
+        "status": "OK",
+        "data": [
+            {
+                "cve": "CVE-2021-44228",
+                "epss": "0.999990000",
+                "percentile": "1.000000000",
+                "date": "2026-09-13",
+            }
+        ],
+    }
+    transport = httpx.MockTransport(lambda request: httpx.Response(200, json=payload))
+    client = EPSSClient()
+    client.client = httpx.AsyncClient(transport=transport)
+    try:
+        data = await client.get_rich_epss_data("CVE-2021-44228")
+    finally:
+        await client.client.aclose()
+
+    assert data.percentile == pytest.approx(1.0)
+    assert data.threat_intelligence_factor == 1.5  # top tier now reachable
+
+
+@pytest.mark.asyncio
+async def test_cvedb_epss_percentile_matches_first_org_scale():
+    client = _client_returning(CVEDB_PAYLOAD)
+    try:
+        epss = await client.get_rich_epss_data("CVE-2021-44228")
+    finally:
+        await client.aclose()
+
+    assert 0.0 <= epss.percentile <= 1.0
+    assert epss.percentile == pytest.approx(0.99)

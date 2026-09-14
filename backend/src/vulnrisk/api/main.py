@@ -12,6 +12,7 @@ import tempfile
 from fastapi.responses import FileResponse
 
 from ..core.risk_calculator import EnhancedContextualFramework, VulnerabilityData, RiskBasedFramework
+from ..data_sources.epss import PERCENTILE_TOP_5, PERCENTILE_TOP_10
 from ..data_sources.resolver import CVEIntelligenceResolver, configured_source_order
 from ..services.cve_intelligence import (
     NOT_FOUND_DETAIL,
@@ -146,7 +147,7 @@ def _determine_exploitation_frequency_from_intel(cve_data, epss_data) -> str:
     
     # Use EPSS percentile for campaign detection
     if epss_data:
-        if epss_data.percentile >= 95.0 and epss_data.epss_score >= 0.8:
+        if epss_data.percentile >= PERCENTILE_TOP_5 and epss_data.epss_score >= 0.8:
             return "active"  # Top 5% + very high score = active campaigns
         elif epss_data.epss_score >= 0.5:
             return "known"  # High score = known exploitation incidents
@@ -180,7 +181,7 @@ def _determine_threat_actor_sophistication_from_intel(cve_data, epss_data) -> st
     # CISA KEV often involves sophisticated actors
     if cve_data.cisa_kev:
         # High-value targets with KEV suggest APT
-        if epss_data and epss_data.percentile >= 90.0:
+        if epss_data and epss_data.percentile >= PERCENTILE_TOP_10:
             return "apt"  # Advanced persistent threat groups
         else:
             return "organized"  # Organized cybercriminal groups

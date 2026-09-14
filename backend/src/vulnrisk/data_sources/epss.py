@@ -4,6 +4,29 @@ import logging
 
 logger = logging.getLogger("vulnrisk.epss")
 
+# EPSS percentiles are a 0-1 fraction, NOT 0-100. FIRST.org reports Log4Shell
+# (the single most-exploited CVE on record) as percentile "1.000000000", and a
+# mid-tier CVE as "0.952130000". Thresholds are named so the scale is explicit
+# at every call site: comparing against 95.0 silently never matches.
+PERCENTILE_TOP_5 = 0.95   # 95th percentile and above
+PERCENTILE_TOP_10 = 0.90  # 90th percentile and above
+
+
+def normalize_percentile(value: Optional[float]) -> float:
+    """Coerce a percentile onto the 0-1 scale.
+
+    A genuine 0-1 percentile can never exceed 1.0, so anything larger is a
+    source reporting 0-100 and is rescaled. Guards against a new data source
+    reintroducing the scale mismatch this constant set exists to prevent.
+    """
+    try:
+        percentile = float(value or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
+    if percentile > 1.0:
+        percentile = percentile / 100.0
+    return min(max(percentile, 0.0), 1.0)
+
 
 def calculate_threat_intelligence_factor(epss_score: float, percentile: float) -> float:
     """
@@ -19,7 +42,7 @@ def calculate_threat_intelligence_factor(epss_score: float, percentile: float) -
     source produces the same factor for the same numbers.
     """
     # Very high EPSS (top 5%) suggests active campaigns
-    if percentile >= 95.0 and epss_score >= 0.7:
+    if percentile >= PERCENTILE_TOP_5 and epss_score >= 0.7:
         return 1.5  # Active exploitation campaigns detected
 
     # High EPSS suggests exploit code availability
@@ -44,7 +67,8 @@ class EPSSData:
     def __init__(self, data: Dict[str, Any]):
         self.cve_id = data.get('cve_id')
         self.epss_score = data.get('epss_score', 0.0)
-        self.percentile = data.get('percentile', 0.0)
+        # Always a 0-1 fraction; see normalize_percentile above.
+        self.percentile = normalize_percentile(data.get('percentile', 0.0))
         self.date = data.get('date')
         self.threat_intelligence_factor = data.get('threat_intelligence_factor', 1.0)
 
