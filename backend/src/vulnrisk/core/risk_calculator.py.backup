@@ -1,0 +1,554 @@
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from typing import Dict, Any, List, Optional
+from datetime import datetime, timedelta
+import json
+
+@dataclass
+class VulnerabilityData:
+    """Data class representing a vulnerability and its context."""
+    cve_id: str
+    cvss_score: float
+    asset_criticality: int
+    epss_score: float
+    is_internet_facing: bool
+    has_exploit: bool = False
+    is_kev: bool = False
+    # Additional context for transparent calculations
+    cia_impact: Dict[str, float] = None  # Confidentiality, Integrity, Availability
+    network_exposure: str = "internal"  # internet-facing, internal, isolated
+    attack_path_complexity: str = "direct"  # direct, single-hop, multi-hop, complex
+    exploit_availability: str = "none"  # automated, manual, poc, details, limited, specialized
+    discovery_difficulty: str = "standard"  # easy, standard, authenticated, specialized, manual
+    exploitation_frequency: str = "none"  # kev, active, known, sporadic, none, academic
+    target_attractiveness: str = "standard"  # high-value, medium-value, standard, low-value, specialized
+    threat_actor_sophistication: str = "standard"  # nation-state, apt, organized, skilled, script-kiddie, opportunistic
+    resource_level: str = "standard"  # well-funded, moderate, standard, limited, minimal
+    vulnerability_age_days: int = 0
+    patch_availability: str = "available"  # none, complex, standard, deployed, mandated
+    disclosure_timeline: str = "standard"  # zero-day, coordinated, standard, responsible, full
+    preventive_controls: List[str] = None
+    detective_controls: List[str] = None
+    response_controls: List[str] = None
+
+@dataclass
+class CalculationComponent:
+    """Represents a single calculation component with full transparency."""
+    value: float
+    weight: float
+    contribution: float
+    source: str
+    reasoning: str
+    sub_components: Optional[Dict[str, Any]] = None
+
+@dataclass
+class RiskScore:
+    """Data class representing the risk score with full transparency."""
+    score: float
+    priority: str
+    timeline_days: int
+    explanation: str
+    components: Dict[str, float]
+    # New transparent fields
+    calculation_breakdown: Dict[str, Any]
+    confidence_score: float
+    data_freshness: Dict[str, str]
+    recommendations: List[str]
+    audit_trail: Dict[str, Any]
+
+class BaseRiskFramework(ABC):
+    """Abstract base class for risk frameworks."""
+    def __init__(self, name: str, description: str) -> None:
+        self.name = name
+        self.description = description
+
+    @abstractmethod
+    def calculate_risk(self, vuln: VulnerabilityData) -> RiskScore:
+        pass
+
+    def _calculate_confidence_score(self, vuln: VulnerabilityData) -> float:
+        """Calculate confidence score based on data quality."""
+        data_freshness = 0.9  # Assume recent data
+        source_reliability = 0.9  # NVD and EPSS are reliable sources
+        coverage_completeness = 0.8  # Most data points available
+        
+        return (data_freshness * 0.3) + (source_reliability * 0.4) + (coverage_completeness * 0.3)
+
+    def _get_data_freshness(self) -> Dict[str, str]:
+        """Get data freshness information."""
+        return {
+            "cvss_age": "1 day",
+            "epss_age": "1 day",
+            "threat_intel_age": "6 hours"
+        }
+
+    def _generate_recommendations(self, vuln: VulnerabilityData, score: float, priority: str, timeline: int = None) -> List[str]:
+        """Generate enterprise-grade actionable recommendations based on risk assessment and SLA timeline."""
+        recommendations = []
+        
+        # Timeline-based recommendations (enterprise approach)
+        if timeline and timeline <= 7:
+            recommendations.extend([
+                f"🚨 URGENT: Remediate within {timeline} days",
+                "Schedule emergency maintenance window if needed",
+                "Implement immediate compensating controls if patching delayed",
+                "Notify stakeholders and document risk acceptance if timeline cannot be met"
+            ])
+        elif timeline and timeline <= 15:
+            recommendations.extend([
+                f"🔥 HIGH PRIORITY: Remediate within {timeline} days", 
+                "Schedule next available maintenance window",
+                "Review and strengthen network security controls",
+                "Update threat detection rules and monitoring"
+            ])
+        elif timeline and timeline <= 30:
+            recommendations.extend([
+                f"⚡ ELEVATED: Remediate within {timeline} days",
+                "Include in next monthly maintenance cycle",
+                "Review existing security controls effectiveness",
+                "Update vulnerability management procedures"
+            ])
+        elif timeline and timeline <= 90:
+            recommendations.extend([
+                f"📅 PLANNED: Remediate within {timeline} days",
+                "Include in next quarterly maintenance cycle",
+                "Document for compliance reporting",
+                "Consider additional monitoring and detection"
+            ])
+        else:
+            # Fallback to priority-based for backwards compatibility
+            timeline_display = f"{timeline} days" if timeline else "standard timeline"
+            if priority == "CRITICAL":
+                recommendations.extend([
+                    f"Apply vendor patch immediately ({timeline_display})",
+                    "Implement emergency compensating controls",
+                    "Activate incident response procedures"
+                ])
+            elif priority == "HIGH":
+                recommendations.extend([
+                    f"Apply vendor patch within {timeline_display}",
+                    "Review and strengthen network security controls",
+                    "Update threat detection rules"
+                ])
+            else:
+                recommendations.extend([
+                    f"Apply patch during standard patching cycle ({timeline_display})",
+                    "Document for future reference",
+                    "Include in regular security reviews"
+                ])
+        
+        # Context-specific enterprise recommendations
+        if vuln.is_kev:
+            recommendations.append("🎯 CISA KEV LISTED: Federal mandate requires immediate attention")
+        
+        if vuln.is_internet_facing:
+            recommendations.append("🌐 INTERNET-FACING: Prioritize due to external threat exposure")
+        
+        if vuln.has_exploit:
+            recommendations.append("💥 EXPLOIT AVAILABLE: Active exploitation possible - monitor for indicators of compromise")
+        
+        if vuln.asset_criticality >= 8:
+            recommendations.append("🏢 HIGH-VALUE ASSET: Business-critical system requires expedited remediation")
+        
+        # Asset-specific recommendations
+        if vuln.asset_criticality >= 8 and vuln.is_internet_facing:
+            recommendations.append("⚠️ CRITICAL EXPOSURE: High-value internet-facing asset - consider temporary network isolation")
+        
+        return recommendations
+
+class EnhancedContextualFramework(BaseRiskFramework):
+    """Risk framework that balances technical severity with business context."""
+    def __init__(self) -> None:
+        super().__init__(
+            "Enhanced Contextual",
+            "Balances technical severity with business context"
+        )
+        self.weights = {
+            'cvss': 0.4,
+            'criticality': 0.4,
+            'epss': 0.2
+        }
+
+    def _calculate_technical_severity(self, vuln: VulnerabilityData) -> CalculationComponent:
+        """Calculate technical severity component."""
+        value = vuln.cvss_score
+        weight = self.weights['cvss']
+        contribution = value * weight
+        
+        return CalculationComponent(
+            value=value,
+            weight=weight,
+            contribution=contribution,
+            source="NVD CVSS 3.1 Base Score",
+            reasoning=f"CVSS {value}/10 - {self._get_cvss_severity_level(value)} severity"
+        )
+
+    def _calculate_business_impact(self, vuln: VulnerabilityData) -> CalculationComponent:
+        """Calculate business impact component."""
+        # Apply CIA impact factor if available
+        cia_factor = 1.0
+        if vuln.cia_impact:
+            cia_factor = max(vuln.cia_impact.values())
+        
+        value = vuln.asset_criticality * cia_factor
+        weight = self.weights['criticality']
+        contribution = value * weight
+        
+        criticality_level = self._get_criticality_level(vuln.asset_criticality)
+        
+        return CalculationComponent(
+            value=value,
+            weight=weight,
+            contribution=contribution,
+            source="Asset inventory classification",
+            reasoning=f"Asset criticality {vuln.asset_criticality}/10 ({criticality_level}) with CIA factor {cia_factor:.1f}"
+        )
+
+    def _calculate_exploit_likelihood(self, vuln: VulnerabilityData) -> CalculationComponent:
+        """Calculate exploit likelihood component."""
+        # Apply threat intelligence factor
+        threat_factor = self._get_threat_intelligence_factor(vuln)
+        value = (vuln.epss_score * 100) * threat_factor
+        weight = self.weights['epss']
+        contribution = value * weight
+        
+        return CalculationComponent(
+            value=value,
+            weight=weight,
+            contribution=contribution,
+            source="FIRST.org EPSS + Threat Intelligence",
+            reasoning=f"EPSS {vuln.epss_score:.3f} ({vuln.epss_score*100:.1f}% probability) with threat factor {threat_factor:.1f}"
+        )
+
+    def _calculate_context_multipliers(self, vuln: VulnerabilityData) -> Dict[str, CalculationComponent]:
+        """Calculate context multipliers."""
+        multipliers = {}
+        
+        # Reachability multiplier
+        network_exposure = self._get_network_exposure_factor(vuln.network_exposure)
+        attack_complexity = self._get_attack_complexity_factor(vuln.attack_path_complexity)
+        reachability_value = network_exposure * attack_complexity
+        
+        multipliers['reachability'] = CalculationComponent(
+            value=reachability_value,
+            weight=1.0,
+            contribution=reachability_value,
+            source="Network exposure analysis",
+            reasoning=f"Network exposure: {vuln.network_exposure} ({network_exposure:.1f}x), Attack complexity: {vuln.attack_path_complexity} ({attack_complexity:.1f}x)"
+        )
+        
+        # Threat intelligence multiplier
+        threat_value = self._get_threat_intelligence_factor(vuln)
+        multipliers['threat_intelligence'] = CalculationComponent(
+            value=threat_value,
+            weight=1.0,
+            contribution=threat_value,
+            source="Threat intelligence feeds",
+            reasoning=self._get_threat_intelligence_reasoning(vuln)
+        )
+        
+        return multipliers
+
+    def _calculate_mitigation_factors(self, vuln: VulnerabilityData) -> Dict[str, CalculationComponent]:
+        """Calculate mitigation factors."""
+        factors = {}
+        
+        # Preventive controls
+        preventive_value = self._calculate_preventive_controls(vuln.preventive_controls or [])
+        factors['preventive_controls'] = CalculationComponent(
+            value=preventive_value,
+            weight=1.0,
+            contribution=preventive_value,
+            source="Security control assessment",
+            reasoning=f"Preventive controls: {', '.join(vuln.preventive_controls or ['None'])}"
+        )
+        
+        # Detective controls
+        detective_value = self._calculate_detective_controls(vuln.detective_controls or [])
+        factors['detective_controls'] = CalculationComponent(
+            value=detective_value,
+            weight=1.0,
+            contribution=detective_value,
+            source="Monitoring assessment",
+            reasoning=f"Detective controls: {', '.join(vuln.detective_controls or ['None'])}"
+        )
+        
+        # Response controls
+        response_value = self._calculate_response_controls(vuln.response_controls or [])
+        factors['response_controls'] = CalculationComponent(
+            value=response_value,
+            weight=1.0,
+            contribution=response_value,
+            source="Response capability assessment",
+            reasoning=f"Response controls: {', '.join(vuln.response_controls or ['None'])}"
+        )
+        
+        return factors
+
+    def calculate_risk(self, vuln: VulnerabilityData) -> RiskScore:
+        """Calculate risk score with full transparency."""
+        # Calculate base risk components
+        technical_severity = self._calculate_technical_severity(vuln)
+        business_impact = self._calculate_business_impact(vuln)
+        exploit_likelihood = self._calculate_exploit_likelihood(vuln)
+        
+        base_risk = technical_severity.contribution + business_impact.contribution + exploit_likelihood.contribution
+        
+        # Calculate context multipliers
+        context_multipliers = self._calculate_context_multipliers(vuln)
+        reachability_multiplier = context_multipliers['reachability'].value
+        threat_multiplier = context_multipliers['threat_intelligence'].value
+        
+        # Calculate mitigation factors
+        mitigation_factors = self._calculate_mitigation_factors(vuln)
+        total_mitigation = sum(factor.value for factor in mitigation_factors.values())
+        mitigation_factor = min(total_mitigation, 0.9)  # Cap at 90% reduction
+        
+        # Apply multipliers and mitigation
+        intermediate_score = base_risk * reachability_multiplier * threat_multiplier
+        final_score = intermediate_score * (1 - mitigation_factor)
+        
+        # Determine priority and timeline with context awareness
+        priority, timeline = self._classify_priority(final_score, vuln)
+        
+        # Generate detailed explanation
+        explanation = self._generate_detailed_explanation(vuln, final_score, base_risk, context_multipliers, mitigation_factors)
+        
+        # Build calculation breakdown
+        calculation_breakdown = {
+            "base_risk": {
+                "value": base_risk,
+                "components": {
+                    "technical_severity": {
+                        "value": technical_severity.value,
+                        "weight": technical_severity.weight,
+                        "contribution": technical_severity.contribution,
+                        "source": technical_severity.source,
+                        "reasoning": technical_severity.reasoning
+                    },
+                    "business_impact": {
+                        "value": business_impact.value,
+                        "weight": business_impact.weight,
+                        "contribution": business_impact.contribution,
+                        "source": business_impact.source,
+                        "reasoning": business_impact.reasoning
+                    },
+                    "exploit_likelihood": {
+                        "value": exploit_likelihood.value,
+                        "weight": exploit_likelihood.weight,
+                        "contribution": exploit_likelihood.contribution,
+                        "source": exploit_likelihood.source,
+                        "reasoning": exploit_likelihood.reasoning
+                    }
+                }
+            },
+            "context_multipliers": {
+                "reachability": {
+                    "value": reachability_multiplier,
+                    "reasoning": context_multipliers['reachability'].reasoning
+                },
+                "threat_intelligence": {
+                    "value": threat_multiplier,
+                    "reasoning": context_multipliers['threat_intelligence'].reasoning
+                }
+            },
+            "mitigation_factors": {
+                "total_reduction": mitigation_factor,
+                "components": {
+                    name: {
+                        "value": factor.value,
+                        "controls": getattr(vuln, f"{name.split('_')[0]}_controls", []),
+                        "reasoning": factor.reasoning
+                    }
+                    for name, factor in mitigation_factors.items()
+                }
+            }
+        }
+        
+        # Calculate confidence and get recommendations
+        confidence_score = self._calculate_confidence_score(vuln)
+        data_freshness = self._get_data_freshness()
+        recommendations = self._generate_recommendations(vuln, final_score, priority, timeline)
+        
+        # Create audit trail
+        audit_trail = {
+            "calculation_timestamp": datetime.now().isoformat(),
+            "framework_version": "1.0",
+            "input_parameters": {
+                "cve_id": vuln.cve_id,
+                "cvss_score": vuln.cvss_score,
+                "asset_criticality": vuln.asset_criticality,
+                "epss_score": vuln.epss_score,
+                "is_internet_facing": vuln.is_internet_facing,
+                "is_kev": vuln.is_kev
+            },
+            "calculation_steps": [
+                f"Base risk calculation: {base_risk:.2f}",
+                f"Reachability multiplier: {reachability_multiplier:.2f}",
+                f"Threat multiplier: {threat_multiplier:.2f}",
+                f"Intermediate score: {intermediate_score:.2f}",
+                f"Mitigation factor: {mitigation_factor:.2f}",
+                f"Final score: {final_score:.2f}"
+            ]
+        }
+
+        return RiskScore(
+            score=final_score,
+            priority=priority,
+            timeline_days=timeline,
+            explanation=explanation,
+            components={
+                'cvss_component': technical_severity.contribution,
+                'criticality_component': business_impact.contribution,
+                'epss_component': exploit_likelihood.contribution,
+                'reachability_multiplier': reachability_multiplier,
+                'threat_multiplier': threat_multiplier,
+                'mitigation_factor': mitigation_factor
+            },
+            calculation_breakdown=calculation_breakdown,
+            confidence_score=confidence_score,
+            data_freshness=data_freshness,
+            recommendations=recommendations,
+            audit_trail=audit_trail
+        )
+
+    def _classify_priority(self, score: float, vuln: VulnerabilityData = None) -> tuple[str, int]:
+        """
+        Context-aware priority classification with enterprise-grade SLA timelines.
+        
+        Base timelines aligned with industry standards:
+        - CRITICAL: 14 days (industry standard)
+        - HIGH: 30 days (CISA standard)
+        - MEDIUM: 90 days (quarterly cycle)
+        - LOW: 180 days (semi-annual)
+        - INFORMATIONAL: 365 days (annual review)
+        
+        Context-based acceleration:
+        - CISA KEV: Max 15 days (federal mandate)
+        - Internet-facing: Halved timeline (min 3 days)
+        - Exploit available: Max 14 days for actionable scores
+        - High asset criticality: 25% faster timeline
+        """
+        # Base industry-standard timelines
+        if score >= 90:
+            priority, timeline = "CRITICAL", 14
+        elif score >= 70:
+            priority, timeline = "HIGH", 30
+        elif score >= 40:
+            priority, timeline = "MEDIUM", 90
+        elif score >= 20:
+            priority, timeline = "LOW", 180
+        else:
+            priority, timeline = "INFORMATIONAL", 365
+        
+        # Context-based acceleration (enterprise features)
+        if vuln:
+            # CISA KEV compliance (federal mandate)
+            if vuln.is_kev:
+                timeline = min(timeline, 15)  # CISA directive: max 15 days
+                if score >= 40:  # Elevate priority for actionable KEV
+                    priority = "CRITICAL" if score >= 70 else "HIGH"
+            
+            # Internet-facing acceleration (external threat exposure)
+            if vuln.is_internet_facing and score >= 40:
+                timeline = max(timeline // 2, 3)  # Halve timeline, minimum 3 days
+            
+            # Exploit availability acceleration
+            if vuln.has_exploit and score >= 40:
+                timeline = min(timeline, 14)  # Max 14 days if exploit exists
+                if score >= 70 and vuln.is_internet_facing:
+                    timeline = min(timeline, 7)  # Critical + internet + exploit = 7 days max
+            
+            # Asset criticality adjustments
+            if vuln.asset_criticality >= 8 and score >= 40:
+                timeline = max(int(timeline * 0.75), 1)  # High-value assets: 25% faster
+            elif vuln.asset_criticality <= 3 and priority in ["LOW", "INFORMATIONAL"]:
+                timeline = min(int(timeline * 1.2), 365)  # Low-value assets: slight extension, capped at 1 year
+        
+        return priority, timeline
+
+    def _generate_detailed_explanation(self, vuln: VulnerabilityData, final_score: float, base_risk: float, 
+                                     context_multipliers: Dict, mitigation_factors: Dict) -> str:
+        """Generate detailed explanation of the calculation."""
+        explanation = f"Risk score {final_score:.2f} calculated using transparent methodology:\n\n"
+        
+        explanation += "1. TECHNICAL ASSESSMENT\n"
+        explanation += f"   └── CVSS Base Score: {vuln.cvss_score}/10 ({self._get_cvss_severity_level(vuln.cvss_score)})\n"
+        explanation += f"   └── Asset Criticality: {vuln.asset_criticality}/10 ({self._get_criticality_level(vuln.asset_criticality)})\n"
+        explanation += f"   └── EPSS Score: {vuln.epss_score:.3f} ({vuln.epss_score*100:.1f}% exploitation probability)\n"
+        
+        explanation += "\n2. CONTEXT MULTIPLIERS\n"
+        explanation += f"   └── Network Exposure: {vuln.network_exposure} ({context_multipliers['reachability'].value:.1f}x)\n"
+        explanation += f"   └── Threat Intelligence: {context_multipliers['threat_intelligence'].reasoning}\n"
+        
+        explanation += "\n3. MITIGATION ASSESSMENT\n"
+        total_mitigation = sum(factor.value for factor in mitigation_factors.values())
+        explanation += f"   └── Total Risk Reduction: {total_mitigation*100:.0f}%\n"
+        for name, factor in mitigation_factors.items():
+            explanation += f"   └── {name.replace('_', ' ').title()}: {factor.value*100:.0f}% reduction\n"
+        
+        explanation += f"\n4. FINAL CALCULATION\n"
+        explanation += f"   └── Base Risk: {base_risk:.2f}\n"
+        explanation += f"   └── Applied Multipliers: {context_multipliers['reachability'].value:.1f}x × {context_multipliers['threat_intelligence'].value:.1f}x\n"
+        explanation += f"   └── Mitigation Applied: {total_mitigation*100:.0f}% reduction\n"
+        explanation += f"   └── FINAL RISK SCORE: {final_score:.2f}/100\n"
+        
+        return explanation
+
+    # Helper methods for factor calculations
+    def _get_cvss_severity_level(self, score: float) -> str:
+        if score >= 9.0: return "Critical"
+        elif score >= 7.0: return "High"
+        elif score >= 4.0: return "Medium"
+        elif score >= 0.1: return "Low"
+        else: return "None"
+
+    def _get_criticality_level(self, criticality: int) -> str:
+        if criticality >= 9: return "Mission Critical"
+        elif criticality >= 7: return "High Business Impact"
+        elif criticality >= 5: return "Important Operations"
+        elif criticality >= 3: return "Standard Operations"
+        else: return "Low Impact"
+
+    def _get_threat_intelligence_factor(self, vuln: VulnerabilityData) -> float:
+        if vuln.is_kev: return 2.0
+        elif vuln.has_exploit: return 1.5
+        else: return 1.0
+
+    def _get_network_exposure_factor(self, exposure: str) -> float:
+        factors = {
+            "internet-facing": 3.0,
+            "internal": 1.2,
+            "isolated": 1.0
+        }
+        return factors.get(exposure, 1.0)
+
+    def _get_attack_complexity_factor(self, complexity: str) -> float:
+        factors = {
+            "direct": 1.0,
+            "single-hop": 0.9,
+            "multi-hop": 0.8,
+            "complex": 0.7
+        }
+        return factors.get(complexity, 1.0)
+
+    def _get_threat_intelligence_reasoning(self, vuln: VulnerabilityData) -> str:
+        if vuln.is_kev:
+            return "CISA Known Exploited Vulnerability (KEV) - active exploitation confirmed"
+        elif vuln.has_exploit:
+            return "Public exploit code available - high exploitation likelihood"
+        else:
+            return "Standard EPSS scoring - no additional threat intelligence"
+
+    def _calculate_preventive_controls(self, controls: List[str]) -> float:
+        if not controls: return 0.0
+        # Simplified calculation - in practice would be more sophisticated
+        return min(len(controls) * 0.1, 0.7)
+
+    def _calculate_detective_controls(self, controls: List[str]) -> float:
+        if not controls: return 0.0
+        return min(len(controls) * 0.1, 0.3)
+
+    def _calculate_response_controls(self, controls: List[str]) -> float:
+        if not controls: return 0.0
+        return min(len(controls) * 0.05, 0.2) 

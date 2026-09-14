@@ -1,0 +1,51 @@
+{
+  "name": "vulnrisk-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext .ts,.tsx",
+    "format": "prettier --write .",
+    "install:clean": "rm -rf node_modules package-lock.json && npm cache clean --force && npm install",
+    "install:legacy": "npm install --legacy-peer-deps",
+    "ci:fix": "rm -rf node_modules package-lock.json && npm cache clean --force && npm install",
+    "ci:force": "rm -rf node_modules package-lock.json && npm cache clean --force && npm install --force"
+  },
+  "dependencies": {
+    "@auth0/auth0-react": "2.4.0",
+    "@headlessui/react": "1.7.17",
+    "@heroicons/react": "2.1.1",
+    "@radix-ui/react-progress": "1.1.7",
+    "@radix-ui/react-separator": "1.1.7",
+    "@radix-ui/react-tabs": "1.1.12",
+    "chart.js": "4.5.0",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
+    "esbuild": "0.24.0",
+    "lucide-react": "0.525.0",
+    "react": "18.3.1",
+    "react-chartjs-2": "5.3.0",
+    "react-dom": "18.3.1",
+    "react-dropzone": "14.3.8",
+    "react-router-dom": "6.30.1",
+    "recharts": "2.15.4",
+    "tailwind-merge": "3.3.1",
+    "zustand": "4.4.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/forms": "0.5.7",
+    "@tailwindcss/typography": "0.5.10",
+    "@types/react": "19.1.8",
+    "@types/react-dom": "19.1.6",
+    "@vitejs/plugin-react": "4.2.0",
+    "autoprefixer": "10.4.16",
+    "eslint": "8.57.0",
+    "postcss": "8.4.38",
+    "prettier": "3.2.5",
+    "tailwindcss": "3.4.1",
+    "typescript": "5.3.3",
+    "vite": "5.2.0"
+  }
+}

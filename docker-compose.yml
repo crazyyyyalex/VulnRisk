@@ -1,0 +1,47 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "${BACKEND_HOST_PORT:-8000}:8000"
+    environment:
+      - PYTHONPATH=/app
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql://vulnrisk:password@db:5432/vulnrisk
+      # CVE data sources: NVD first, Shodan CVEDB as keyless backup
+      - CVE_DATA_SOURCES=${CVE_DATA_SOURCES:-nvd,cvedb}
+      - NVD_API_KEY=${NVD_API_KEY:-}
+      - CVE_CACHE_TTL_SECONDS=${CVE_CACHE_TTL_SECONDS:-3600}
+      - NVD_TIMEOUT_SECONDS=${NVD_TIMEOUT_SECONDS:-15}
+      - NVD_MAX_RETRIES=${NVD_MAX_RETRIES:-2}
+      - CVEDB_BASE_URL=${CVEDB_BASE_URL:-https://cvedb.shodan.io}
+      - CVEDB_TIMEOUT_SECONDS=${CVEDB_TIMEOUT_SECONDS:-10}
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - db
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "${FRONTEND_HOST_PORT:-3000}:3000"
+    environment:
+      - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8000}
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+
+  db:
+    image: postgres:13
+    environment:
+      - POSTGRES_DB=vulnrisk
+      - POSTGRES_USER=vulnrisk
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "${DB_HOST_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

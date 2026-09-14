@@ -1,0 +1,59 @@
+# Environment files
+.env
+.env.local
+.env.production
+.env.staging
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# Node modules
+node_modules/
+npm-debug.log*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+.venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Docker
+docker-compose.override.yml
+
+# Local development
+.env
+
+# Private legal documents (never commit these!)
+private-legal-docs/
+PRIVATE_*.md
+legal-docs/
+business-docs/
+llc-documents/
+ip-assignments/
+commercial-agreements/
